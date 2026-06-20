@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SpectraX-Inspect | HCTF digital twin platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        :root { 
+            --bg: #f8fafc; 
+            --panel: #ffffff; 
+            --text: #0f172a; 
+            --accent: #1e3a8a; 
+            --border: #cbd5e1;
+        }
+        body { 
+            font-family: 'Times New Roman', Times, serif; 
+            background-color: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 25px; 
+            line-height: 1.4;
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid var(--accent); 
+            padding-bottom: 12px; 
+        }
+        .header h1 { margin: 0 0 5px 0; font-weight: bold; font-size: 26px; color: var(--accent); }
+        .header p { margin: 0; font-size: 15px; color: #475569; font-style: italic; }
+        
+        .upload-section { 
+            background: var(--panel); 
+            padding: 15px; 
+            border-radius: 4px; 
+            display: flex; 
+            gap: 15px; 
+            justify-content: center; 
+            align-items: center; 
+            margin-bottom: 20px; 
+            border: 1px solid var(--border); 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .file-box { 
+            border: 1px dashed #64748b; 
+            padding: 12px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            text-align: center; 
+            flex: 1; 
+            background-color: #f1f5f9;
+        }
+        .file-box h4 { margin: 0; font-weight: normal; font-size: 15px; }
+        .btn { 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            padding: 12px 25px; 
+            font-size: 15px; 
+            font-family: 'Times New Roman', Times, serif;
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+        .btn:hover { background: #1e40af; }
+        input[type="file"] { display: none; }
+
+        /* 科学大屏多栏网格布局 */
+        .dashboard { 
+            display: none; 
+            grid-template-columns: 1.2fr 1fr; 
+            gap: 20px; 
+        }
+        .left-column { display: flex; flex-direction: column; gap: 20px; }
+        .panel { 
+            background: var(--panel); 
+            border: 1px solid var(--border); 
+            border-radius: 4px; 
+            padding: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .panel-title { 
+            margin-top: 0; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 8px; 
+            font-weight: bold; 
+            font-size: 17px;
+            color: var(--accent); 
+        }
+
+        .macro-sub-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 15px; }
+        #macroChart { width: 100%; height: 280px; }
+        .stats-container { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+        .stat-card { 
+            background: #f8fafc; 
+            padding: 10px 15px; 
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-label { font-size: 14px; font-weight: bold; }
+        .stat-num { font-size: 20px; font-weight: normal; }
+
+        /* Advanced Charts Block */
+        .advanced-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .adv-chart { width: 100%; height: 280px; }
+
+        /* Slider and Micro Explorer */
+        .slider-container { margin: 15px 0; font-size: 15px; }
+        input[type="range"] { width: 100%; cursor: pointer; margin-top: 8px; }
+        .micro-result { 
+            display: flex; 
+            flex-direction: column;
+            gap: 15px;
+            background: #f8fafc; 
+            padding: 15px; 
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+        .micro-core { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border); padding-bottom: 15px; }
+        .micro-info h2 { margin: 0; font-size: 22px; font-weight: bold; }
+        .micro-info p { margin: 5px 0 0 0; color: #475569; font-size: 14px; }
+        
+        .heatmap-container { text-align: center; width: 100%; }
+        .heatmap-grid { 
+            display: grid; 
+            grid-template-columns: repeat(6, 1fr); 
+            gap: 1px; 
+            width: 210px; 
+            margin: 10px auto; 
+            background: var(--border); 
+            padding: 1px; 
+        }
+        .heat-cell { width: 34px; height: 34px; background-color: #ffffff; }
+        
+        #loading { display: none; text-align: center; font-size: 16px; color: var(--accent); margin: 20px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>SpectraX-Inspect | HCTF digital twin platform for postharvest nuts</h1>
+        <p>An interpretable hierarchical cross-transformer expert system for automated non-destructive evaluation of fungal contamination</p>
+    </div>
+
+    <div class="upload-section">
+        <div class="file-box" onclick="document.getElementById('patchFile').click()">
+            <h4 id="patchLabel">Select PATCH feature library (.h5)</h4>
+            <input type="file" id="patchFile" accept=".h5" onchange="document.getElementById('patchLabel').innerText = 'Selected: ' + this.files[0].name">
+        </div>
+        <div class="file-box" onclick="document.getElementById('mgafFile').click()">
+            <h4 id="mgafLabel">Select MGAF structural matrix (.h5)</h4>
+            <input type="file" id="mgafFile" accept=".h5" onchange="document.getElementById('mgafLabel').innerText = 'Selected: ' + this.files[0].name">
+        </div>
+        <button class="btn" onclick="startAnalysis()">Initiate high-throughput array scan</button>
+    </div>
+
+    <div id="loading">AI engine is executing high-throughput tensor computing and generating SCI-grade TIFF figures, please wait...</div>
+
+    <div class="dashboard" id="dashboard">
+        
+        <div class="left-column">
+            <div class="panel">
+                <h3 class="panel-title">Macro dataset analysis</h3>
+                <div class="macro-sub-grid">
+                    <div id="macroChart"></div>
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <span class="stat-label" style="color:#15803d">Healthy control (Control)</span>
+                            <span class="stat-num" id="statC">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label" style="color:#b45309">Aflatoxigenic fungi (AC)</span>
+                            <span class="stat-num" id="statAC">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label" style="color:#b91c1c">Natural contaminated (NC)</span>
+                            <span class="stat-num" id="statNC">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="advanced-grid">
+                <div class="panel">
+                    <h3 class="panel-title">Biomarker activation profile</h3>
+                    <div id="atlasChart" class="adv-chart"></div>
+                </div>
+                <div class="panel">
+                    <h3 class="panel-title">AI confidence density distribution</h3>
+                    <div id="distChart" class="adv-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3 class="panel-title">Micro single-sample deep traceability explorer</h3>
+            
+            <div class="slider-container">
+                <label>Drag slider to inspect specific sample (current ID: <span id="sampleIdDisplay" style="color:#1e3a8a;font-weight:bold;">0</span> / <span id="totalSamples">0</span>)</label>
+                <input type="range" id="sampleSlider" min="0" value="0">
+            </div>
+
+            <div class="micro-result">
+                <div class="micro-core">
+                    <div class="micro-info">
+                        <h2 id="microDiagnosis">-</h2>
+                        <p id="microConfidence">AI confidence: -</p>
+                    </div>
+                    <div style="font-size:12px; line-height: 1.5; background: #e2e8f0; padding: 8px; border-radius: 4px;">
+                        <strong>[Original probability]</strong><br>
+                        Control: <span id="probC">0</span> | AC: <span id="probAC">0</span> | NC: <span id="probNC">0</span>
+                    </div>
+                </div>
+                
+                <div class="heatmap-container">
+                    <span style="font-size: 14px; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Spatial-spectral MGAF biomarker activation heatmap (2159-2216 nm)</span>
+                    <div class="heatmap-grid" id="heatmapGrid"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const classes = ['Healthy control (Control)', 'Aflatoxigenic fungi (AC)', 'Natural contaminated (NC)'];
+        const colors = ['#15803d', '#b45309', '#b91c1c'];
+        const fontSetting = { fontFamily: 'Times New Roman' };
+
+        async function startAnalysis() {
+            const patchFile = document.getElementById('patchFile').files[0];
+            const mgafFile = document.getElementById('mgafFile').files[0];
+            
+            if (!patchFile || !mgafFile) {
+                alert("Both PATCH and MGAF .h5 files must be selected.");
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append("patch_file", patchFile);
+            formData.append("mgaf_file", mgafFile);
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/api/v1/analyze-batch", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('loading').style.display = 'none';
+
+                if (data.status === "success") {
+                    document.getElementById('dashboard').style.display = 'grid';
+                    
+                    // 1. 渲染大盘分布与统计
+                    renderMacroPie(data.macro_stats.counts);
+                    
+                    // 2. 渲染 Idea 2 全局生物标志物激活图谱 (折线面积图)
+                    renderBiomarkerAtlas(data.advanced_analytics);
+                    
+                    // 3. 渲染 Idea 4 确信度概率密度分布 (多系列条形直方图)
+                    renderConfidenceDistribution(data.advanced_analytics);
+                    
+                    // 4. 初始化微观检索滑块
+                    const slider = document.getElementById('sampleSlider');
+                    slider.max = data.total_samples - 1;
+                    slider.value = 0;
+                    document.getElementById('totalSamples').innerText = data.total_samples - 1;
+
+                    fetchSingleSample(0);
+                } else {
+                    alert("Engine exception: " + data.message);
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                alert("Connection failed. Please verify that app.py is running.");
+            }
+        }
+
+        function renderMacroPie(counts) {
+            document.getElementById('statC').innerText = counts[0];
+            document.getElementById('statAC').innerText = counts[1];
+            document.getElementById('statNC').innerText = counts[2];
+
+            const chart = echarts.init(document.getElementById('macroChart'));
+            chart.setOption({
+                tooltip: { trigger: 'item', textStyle: fontSetting },
+                legend: { bottom: '0', textStyle: { fontFamily: 'Times New Roman', fontSize: 12 } },
+                series: [{
+                    name: 'Sample distribution',
+                    type: 'pie',
+                    radius: ['50%', '80%'],
+                    itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+                    data: [
+                        { value: counts[0], name: 'Control', itemStyle: { color: colors[0] } },
+                        { value: counts[1], name: 'AC', itemStyle: { color: colors[1] } },
+                        { value: counts[2], name: 'NC', itemStyle: { color: colors[2] } }
+                    ],
+                    label: { show: false }
+                }]
+            });
+        }
+
+        function renderBiomarkerAtlas(analytics) {
+            const chart = echarts.init(document.getElementById('atlasChart'));
+            chart.setOption({
+                tooltip: { trigger: 'axis', textStyle: fontSetting },
+                legend: { data: ['Control', 'AC', 'NC'], textStyle: fontSetting, top: '0' },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: analytics.wavelengths, axisLabel: fontSetting },
+                yAxis: { type: 'value', name: 'Mean intensity', nameTextStyle: fontSetting, axisLabel: fontSetting },
+                series: [
+                    { name: 'Control', type: 'line', smooth: true, data: analytics.curves['0'], itemStyle: { color: colors[0] }, areaStyle: { opacity: 0.05 } },
+                    { name: 'AC', type: 'line', smooth: true, data: analytics.curves['1'], itemStyle: { color: colors[1] }, areaStyle: { opacity: 0.05 } },
+                    { name: 'NC', type: 'line', smooth: true, data: analytics.curves['2'], itemStyle: { color: colors[2] }, areaStyle: { opacity: 0.05 } }
+                ]
+            });
+        }
+
+        function renderConfidenceDistribution(analytics) {
+            const chart = echarts.init(document.getElementById('distChart'));
+            chart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, textStyle: fontSetting },
+                legend: { data: ['Control', 'AC', 'NC'], textStyle: fontSetting, top: '0' },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: analytics.confidence_bins, axisLabel: { rotate: 20, fontFamily: 'Times New Roman' } },
+                yAxis: { type: 'value', name: 'Proportion', nameTextStyle: fontSetting, axisLabel: fontSetting },
+                series: [
+                    { name: 'Control', type: 'bar', data: analytics.distributions['0'], itemStyle: { color: colors[0] } },
+                    { name: 'AC', type: 'bar', data: analytics.distributions['1'], itemStyle: { color: colors[1] } },
+                    { name: 'NC', type: 'bar', data: analytics.distributions['2'], itemStyle: { color: colors[2] } }
+                ]
+            });
+        }
+
+        function updateSliderText(index) {
+            document.getElementById('sampleIdDisplay').innerText = index;
+        }
+
+        async function fetchSingleSample(index) {
+            updateSliderText(index);
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/api/v1/sample/${index}`);
+                const data = await response.json();
+
+                if (data.status === "success") {
+                    const probs = data.prob;
+                    const scores = data.score;
+                    
+                    let maxProb = 0; let predIdx = 0;
+                    for(let i=0; i<3; i++){
+                        if(probs[i] > maxProb) { maxProb = probs[i]; predIdx = i; }
+                    }
+
+                    const diagEl = document.getElementById('microDiagnosis');
+                    diagEl.innerText = classes[predIdx];
+                    diagEl.style.color = colors[predIdx];
+                    document.getElementById('microConfidence').innerText = `AI confidence: ${(maxProb*100).toFixed(2)}%`;
+                    
+                    document.getElementById('probC').innerText = probs[0].toFixed(4);
+                    document.getElementById('probAC').innerText = probs[1].toFixed(4);
+                    document.getElementById('probNC').innerText = probs[2].toFixed(4);
+
+                    const grid = document.getElementById('heatmapGrid');
+                    grid.innerHTML = ''; 
+                    
+                    const maxScore = Math.max(...scores);
+                    const minScore = Math.min(...scores);
+
+                    scores.forEach(val => {
+                        const normalized = (val - minScore) / (maxScore - minScore + 0.0001);
+                        const hue = (1 - normalized) * 240; 
+                        const cell = document.createElement('div');
+                        cell.className = 'heat-cell';
+                        cell.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+                        grid.appendChild(cell);
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch sample data.", error);
+            }
+        }
+
+        const sliderEl = document.getElementById('sampleSlider');
+        sliderEl.addEventListener('input', (e) => updateSliderText(e.target.value));
+        sliderEl.addEventListener('change', (e) => fetchSingleSample(e.target.value));
+    </script>
+</body>
+</html>
